@@ -1,7 +1,22 @@
 Port of Erlang/OTP to uClinux
 =============================
-This code base provides a port of [Erlang/OTP][1] to [uClinux][6] to enable Erlang to be run on processors without an MMU. [Lumenosys Robotics][7] is developing this port for our Analog Devices [Blackfin][8] based single board computers for Internet of things and robotics applications, however, this port should allow Erlang to run on any processor currently suported by uClinux.
 
+Overview
+--------
+This code base provides a port of [Erlang/OTP][1] to [uClinux][6] to enable Erlang to be run on processors without an MMU. [Lumenosys Robotics][7] is developing this port for our Analog Devices [Blackfin][8] based single board computers for Internet of things and robotics applications, however, this port should allow Erlang to run on any processor currently supported by uClinux.
+
+Purpose
+-------
+Our hope is that this port will allow the use of Erlang on a wider variety of hardware, allowing it to push deeper into the embedded domain and gain ground in emerging IOT and wearable computing.
+
+
+Testing
+-------
+Because forking is not possible on no-MMU platforms, running Erlang on these platforms involves modifying all code which calls fork() to instead use vfork(). In some cases this is a bit tricky, as it can require saving any environment/args, and passing these as arguments to a child process. 
+
+So far we have only tested on the [Obsidian BMOD][9] board. This board contains an Analog Devices BF534 processor with 64MB SDRAM. A fully usable Erlang/OTP build is small enough to actually fit in the on-board 16MB SPI flash with room to spare! In this configuration, the port has performed well but more testing is needed. The port can run most tests in the OTP test suite which do not require allocation of too much memory.
+
+Help with testing and feedback on the possibility of running on other no-MMU processors would be greatly appreciated.
 
 Erlang/OTP
 ----------
