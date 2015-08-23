@@ -1080,13 +1080,19 @@ int main(int argc, char **argv)
 
  skip_arg_massage:
     if (start_detached) {
+#ifdef __uClinux__
+	int status = vfork();
+	if (status != 0)	/* Parent */
+	    _exit(0);		/* after vfork, must _exit()! */
+#else
 	int status = fork();
 	if (status != 0)	/* Parent */
 	    return 0;
-
+#endif
 	if (reset_cerl_detached)
 	    putenv("CERL_DETACHED_PROG=");
 
+#ifndef __uClinux__
 	/* Detach from controlling terminal */
 #ifdef HAVE_SETSID
 	setsid();
@@ -1103,7 +1109,7 @@ int main(int argc, char **argv)
 	status = fork();
 	if (status != 0)	/* Parent */
 	    return 0;
-
+#endif	/* !__uClinux__ */
 	/*
 	 * Grandchild.
 	 */

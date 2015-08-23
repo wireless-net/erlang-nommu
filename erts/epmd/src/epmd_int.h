@@ -326,6 +326,9 @@ typedef struct {
   int debug;
   int silent; 
   int is_daemon;
+#ifdef __uClinux__
+  int is_child;                 /* uclinux support */
+#endif
   int brutal_kill;
   unsigned packet_timeout;
   unsigned delay_accept;

@@ -32,7 +32,11 @@
 /* forward declarations */
 
 static void usage(EpmdVars *);
+#ifdef __uClinux__
+static void run_daemon(int argc, char**argv, EpmdVars*);
+#else
 static void run_daemon(EpmdVars*);
+#endif
 static char* get_addresses(void);
 static int get_port_no(void);
 static int check_relaxed(void);
@@ -132,9 +136,18 @@ static int epmd_main(int argc, char** argv, int free_argv)
 int main(int argc, char** argv)
 #endif /* DONT_USE_MAIN */
 {
+  /* UCLINUX PORT notes:
+   *                     
+   * For uclinux, we only have vfork. So to daemonize, we must save
+   * environment/args, and start ourselves as a child with a call to
+   * exec() passing these args.
+   */
+
     EpmdVars g_empd_vars;
     EpmdVars *g = &g_empd_vars;
     int i;
+    int child_argc = argc;
+    char **child_argv = argv;
 #ifdef __WIN32__
     WORD wVersionRequested;
     WSADATA wsaData;
@@ -166,6 +179,9 @@ int main(int argc, char** argv)
 
     g->silent         = 0; 
     g->is_daemon      = 0;
+#ifdef __uClinux__
+    g->is_child       = 0;
+#endif
     g->brutal_kill    = check_relaxed();
     g->packet_timeout = CLOSE_TIMEOUT; /* Default timeout */
     g->delay_accept   = 0;
@@ -205,8 +221,18 @@ int main(int argc, char** argv)
 		usage(g);
 	    argv += 2; argc -= 2;
 	} else if (strcmp(argv[0], "-daemon") == 0) {
+#ifdef __uClinux__
+	    /* convert this to -child */
+	    strcpy(argv[0], "-child");
+#endif
 	    g->is_daemon = 1;
 	    argv++; argc--;
+#ifdef __uClinux__
+	} else if (strcmp(argv[0], "-child") == 0) {
+	    /* this is the child process */
+	    g->is_child = 1;          /* fixme: maybe not needed */
+	    argv++; argc--;
+#endif
 	} else if (strcmp(argv[0], "-relaxed_command_check") == 0) {
 	    g->brutal_kill = 1;
 	    argv++; argc--;
@@ -276,7 +302,12 @@ int main(int argc, char** argv)
     }
 
     if (g->is_daemon)  {
+#ifdef __uClinux__
+	run_daemon(child_argc, child_argv, g);
+
+#else
 	run_daemon(g);
+#endif
     } else {
 	run(g);
     }
@@ -284,14 +315,23 @@ int main(int argc, char** argv)
 }
 
 #ifndef NO_DAEMON
+#ifdef __uClinux__
+static void run_daemon(int child_argc, char** child_argv, EpmdVars *g)
+#else
 static void run_daemon(EpmdVars *g)
+#endif
 {
     register int child_pid, fd;
     
     dbg_tty_printf(g,2,"fork a daemon");
 
+#ifdef __uClinux__
+    /* vfork, then exec a copy of ourselves */
+    if (( child_pid = vfork()) < 0)
+#else
     /* fork to make sure first child is not a process group leader */
     if (( child_pid = fork()) < 0)
+#endif
       {
 #ifdef HAVE_SYSLOG_H
 	syslog(LOG_ERR,"erlang mapper daemon cant fork %m");
@@ -303,7 +343,7 @@ static void run_daemon(EpmdVars *g)
 	dbg_tty_printf(g,2,"daemon child is %d",child_pid);
 	epmd_cleanup_exit(g,0);  /*parent */
       }
-    
+#ifndef __uClinux__
     if (setsid() < 0)
       {
 	dbg_perror(g,"epmd: Cant setsid()");
@@ -329,16 +369,22 @@ static void run_daemon(EpmdVars *g)
 	dbg_tty_printf(g,2,"daemon 2'nd child is %d",child_pid);
 	epmd_cleanup_exit(g,0);  /*parent */
       }
+#endif	/* !__uClinux__ */
 
     /* move cwd to root to make sure we are not on a mounted filesystem  */
     if (chdir("/") < 0)
       {
 	dbg_perror(g,"epmd: chdir() failed");
+#ifdef __uClinux__
+	_exit(1);
+#else	
 	epmd_cleanup_exit(g,1);
+#endif
       }
     
     umask(0);
 
+    /* safe for uClinux ?? */
     for (fd = 0; fd < g->max_conn ; fd++) /* close all files ... */
         close(fd);
     /* Syslog on linux will try to write to whatever if we dont
@@ -353,7 +399,15 @@ static void run_daemon(EpmdVars *g)
 
     errno = 0;  /* if set by open */
 
+#ifdef __uClinux__
+    execvp(child_argv[0], child_argv);
+
+    /* should never be reached */
+    dbg_perror(g,"epmd: execvp() failed");
+    _exit(-1);
+#else
     run(g);
+#endif
 }
 
 #endif /* NO_DAEMON */    

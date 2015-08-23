@@ -187,14 +187,18 @@ int main(int argc, char **argv)
   /* 
    * Now create a child process
    */
-
+#ifdef __uClinux__
+  if ((childpid = vfork()) < 0) {
+#else
   if ((childpid = fork()) < 0) {
+#endif
     ERRNO_ERR0(LOG_ERR,"Cannot fork");
     exit(1);
   }
   if (childpid == 0) {
     /* Child */
     sf_close(mfd);
+#ifndef __uClinux__
     /* disassociate from control terminal */
 #ifdef USE_SETPGRP_NOARGS       /* SysV */
     setpgrp();
@@ -202,6 +206,7 @@ int main(int argc, char **argv)
     setpgrp(0,getpid());
 #else                           /* POSIX */
     setsid();
+#endif
 #endif
     /* Open the slave pty */
     if (sfd < 0) {
@@ -718,6 +723,9 @@ static void exec_shell(char **argv)
       OPEN_SYSLOG();
   }
   ERRNO_ERR0(LOG_ERR,"Could not execv");
+#ifdef __uClinux__
+  _exit(-1);			/* after vfork, we must _exit()! */
+#endif
 }
 
 
@@ -727,8 +735,34 @@ static void daemon_init(void)
     pid_t pid;
     int i, maxfd = HIGHEST_FILENO(); 
 
+#ifdef __uClinux__
+    if ((pid = vfork()) != 0)
+	_exit(-1);
+
+    if (pid == 0) {             /* child */
+      char *args[1];
+      args[0] = program_name;
+      
+      for (i = 0; i < maxfd; ++i ) {
+        sf_close(i);
+      }
+      
+      open("/dev/null", O_RDONLY); /* Order is important! */
+      open("/dev/null", O_WRONLY);
+      open("/dev/null", O_WRONLY);
+      
+      errno = 0;  /* if set by open */
+
+      execl(args[0], args[0], NULL);
+      printf("ERROR: execl failed: %s\n", strerror(errno));
+      _exit(-1);
+    } else {
+      exit(0);
+    }
+#else
     if ((pid = fork()) != 0)
 	exit(0);
+
 #if defined(USE_SETPGRP_NOARGS)
     setpgrp();
 #elif defined(USE_SETPGRP)
@@ -757,6 +791,7 @@ static void daemon_init(void)
 
     OPEN_SYSLOG();
     run_daemon = 1;
+#endif	/* !__uClinux__ */
 }
 
 static void usage(char *pname)

@@ -1,5 +1,10 @@
+Port of Erlang/OTP to uClinux
+=============================
+This code base provides a port of [Erlang/OTP][1] to [uClinux][6] to enable Erlang to be run on processors without an MMU. [Lumenosys Robotics][7] is developing this port for our Analog Devices [Blackfin][8] based single board computers for Internet of things and robotics applications, however, this port should allow Erlang to run on any processor currently suported by uClinux.
+
+
 Erlang/OTP
-==========
+----------
 
 **Erlang** is a programming language used to build massively scalable soft
 real-time systems with requirements on high availability. Some of its
@@ -88,4 +93,6 @@ Copyright and License
    [3]: http://www.erlang.org/static/doc/mailinglist.html
    [4]: http://erlang.github.com/otp/
    [5]: HOWTO/INSTALL.md
-   
+   [6]: http://uclinux.org
+   [7]: https://lumenosys.com
+   [8]: http://www.analog.com/en/products/processors-dsp/blackfin.html

@@ -88,8 +88,10 @@
 #include "erl_start.h"
 
 /* FIXME is this a case a vfork can be used? */
+#ifndef __uClinux__
 #if !HAVE_WORKING_VFORK
 # define vfork fork
+#endif
 #endif
 
 #ifndef MAXPATHLEN
@@ -196,7 +198,11 @@ int erl_start_sys(ei_cnode *ec, char *alive, Erl_IpAddr adr, int flags,
 #endif /* defined(VXWORKS) */
   }
 #else /* Unix */
+#ifdef __uClinux__
+  switch ((pid = vfork())) {
+#else
   switch ((pid = fork())) {
+#endif
   case -1:
     r = ERL_SYS_ERROR;
     break;
@@ -207,7 +213,11 @@ int erl_start_sys(ei_cnode *ec, char *alive, Erl_IpAddr adr, int flags,
 
     /* error if reached - parent reports back to caller after timeout
        so we just exit here */
+#ifdef __uClinux__
+    _exit(1);
+#else
     exit(1);
+#endif
     break;
 
   default:

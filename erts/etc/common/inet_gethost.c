@@ -444,6 +444,10 @@ int main(int argc, char **argv)
 	    }
 	} else if(!strcmp(*ap, "-ng")) {
 	    disable_greedy = 1;
+#ifdef __uClinux__
+	} else if(!strcmp(*ap, "-w")) {
+	    return worker_loop();
+#endif
 	} else {
 	    x = atoi(*ap);
 	    if (!x) {
@@ -1602,7 +1606,11 @@ static int create_worker(Worker *pworker, int save_que)
 	close(p0[1]);
 	return -1;
     }
+#ifdef __uClinux__
+    if ((child = vfork()) < 0) { /* failure */
+#else
     if ((child = fork()) < 0) { /* failure */
+#endif
 	warning("Could not fork(), errno = %d",
 		errno);
 	close(p0[0]);
@@ -1626,6 +1634,11 @@ static int create_worker(Worker *pworker, int save_que)
 		  (long) pworker->pid, (int) pworker->readfrom));
 	return 0;
     } else { /* child */
+#ifdef __uClinux__
+	char *args[2];
+	args[0] = program_name;
+	args[1] = "-w";
+#endif	    
 	close(p1[1]);
 	close(p0[0]);
 	close_all_worker_fds();
@@ -1634,13 +1647,24 @@ static int create_worker(Worker *pworker, int save_que)
 	if((dup2(p1[0],0) < 0) || (dup2(p0[1],1) < 0)) {
 	    fatal("Worker could not dup2(), errno = %d",
 		  errno);
+#ifdef __uClinux__
+	    _exit(-1); 		/* after vfork, must _exit()! */
+#else
 	    return -1; /* lint... */
+#endif
 	}
 	close(p1[0]);
 	close(p0[1]);
 	signal(SIGCHLD, SIG_IGN); 
+#ifdef __uClinux__
+	execlp(args[0], args[0], args[1], NULL);
+	fatal("Worker could not execlp(), strerr = %s, args = %s, %s",
+	      strerror(errno), args[0], args[1]);
+	_exit(-1); /* with vfork, must _exit() */
+#else
 	return worker_loop();
-    }
+#endif
+   }
 }
 
 static void close_all_worker_fds(void) 

@@ -1430,6 +1430,8 @@ static ErlDrvData spawn_start(ErlDrvPort port_num, char* name, SysDriverOpts* op
 #ifndef QNX
     int unbind;
 #endif
+
+#ifndef __uClinux__
 #if !DISABLE_VFORK
     int no_vfork;
     size_t no_vfork_sz = sizeof(no_vfork);
@@ -1437,6 +1439,7 @@ static ErlDrvData spawn_start(ErlDrvPort port_num, char* name, SysDriverOpts* op
     no_vfork = (erts_sys_getenv_raw("ERL_NO_VFORK",
 				    (char *) &no_vfork,
 				    &no_vfork_sz) >= 0);
+#endif
 #endif
 
     switch (opts->read_write) {
@@ -1531,11 +1534,13 @@ static ErlDrvData spawn_start(ErlDrvPort port_num, char* name, SysDriverOpts* op
 
     unbind = erts_sched_bind_atfork_prepare();
 
+    /* if compiling for uclinux, we just remove this fork() code,
+     * since the fork() call isn't defined and will not link */
+#ifndef __uClinux__
 #if !DISABLE_VFORK
     /* See fork/vfork discussion before this function. */
     if (no_vfork) {
 #endif
-
 	DEBUGF(("Using fork\n"));
 	pid = fork();
 
@@ -1608,10 +1613,15 @@ static ErlDrvData spawn_start(ErlDrvPort port_num, char* name, SysDriverOpts* op
 	child_error:
 	    _exit(1);
 	}
+
 #if !DISABLE_VFORK
     }
+    else
+#endif
+#endif	/* !__uClinux__ */
+#if !DISABLE_VFORK
 #define ENOUGH_BYTES (44)
-    else { /* Use vfork() */
+    { /* Use vfork() */
 	char **cs_argv= erts_alloc(ERTS_ALC_T_TMP,(CS_ARGV_NO_OF_ARGS + 1)*
 				   sizeof(char *));
 	char fd_close_range[ENOUGH_BYTES];                  /* 44 bytes are enough to  */
@@ -1692,7 +1702,7 @@ static ErlDrvData spawn_start(ErlDrvPort port_num, char* name, SysDriverOpts* op
 	erts_free(ERTS_ALC_T_TMP,cs_argv);
     }
 #undef ENOUGH_BYTES
-#endif
+#endif	/* !DISABLE_VFORK */
 
     erts_sched_bind_atfork_parent(unbind);
 
