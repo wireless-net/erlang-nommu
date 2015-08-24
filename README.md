@@ -9,6 +9,9 @@ Purpose
 -------
 Our hope is that this port will allow the use of Erlang on a wider variety of hardware, allowing it to push deeper into the embedded domain and gain ground in emerging IOT and wearable computing.
 
+Building
+--------
+We currently build Erlang/OTP for no-MMU platforms as a Buildroot package. Please refer to [https://github.com/lumenosys/lumenosys-adi-buildroot/tree/lumenosys/package/erlang_nommu/erlang.mk][10] to see how we are configuring the build. 
 
 Testing
 -------
@@ -111,3 +114,4 @@ Copyright and License
    [6]: http://uclinux.org
    [7]: https://lumenosys.com
    [8]: http://www.analog.com/en/products/processors-dsp/blackfin.html
+   [10]: https://github.com/lumenosys/lumenosys-adi-buildroot/tree/lumenosys/package/erlang_nommu/erlang.mk
